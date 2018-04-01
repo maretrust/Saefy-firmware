@@ -7,7 +7,6 @@
 
 #define AP_HOME_PAGE "/"
 #define AP_SUCCESS_PAGE "/configwifi"
-#define CONFIG_TOPIC "/SAEFYCONFIG"
 #define WIFI_TIMEOUT_S 30
 #define PROVISIONING_IP_1 10
 #define PROVISIONING_IP_2 0
@@ -21,6 +20,8 @@ const int mqttPort = 1883;
 const char* mqttUsername = "";
 const char* mqttPassword = "";
 
+char *topic = "/SAEFYCONFIG";
+
 const char *ssid = "dotcom";
 const char *passwordAp = "dotcom2018";
 
@@ -33,6 +34,10 @@ String passwordWifiClient = "";
 bool mqttConnected = false;
 
 PubSubClient* mqttClient = nullptr;
+
+//working mode setup
+extern int freq = 60;
+
 //diversi stati per definire le fasi di funzionamento
 enum LoopState
 {
@@ -44,10 +49,19 @@ enum LoopState
 	WorkingMode,
   UpdateMode,
 };
+//comandi  da inviare via mqtt
+enum cmdMqtt
+{
+	no,
+  rate,
+	update,
+  reset,
+};
 
 ESP8266WebServer* _esp8266WebServer;
-//comincioa con lo stato Startup
+//comincio con lo stato Startup
 LoopState _currentLoopState = Startup;
+cmdMqtt _currentCmdMqtt = no;
 
 void handle(){
  	String indexHTMLString = String(indexHTML);
@@ -71,20 +85,10 @@ void handleConfigWifi(){
 			Serial.println(passwordWifiClient);
       //successHTMLString
       _esp8266WebServer->send(200, "text/html", successHTMLString);
-		
-		//	_esp8266WebServer->send(200, "text/html", testingHTML);
-
 			//riprendo i dati e vado avanti
       _currentLoopState = ConnectWifi;
     //}//if
 }//handleCONFIGWIFI
-
-void setup() {
-  delay(1000);
-  int deviceId = getIdDevice();
-  idDevice = String(deviceId); 
-  Serial.begin(115200);  
-}
 
 void connectWifi(){
   	//chiudio il server
@@ -107,37 +111,76 @@ void connectWifi(){
     }
 }
 
+void changeConfig(String cmd, String value){
+    char* c = const_cast<char*>(cmd.c_str());
+    if(strcmp(c, "rate") == 0)
+    {
+      freq = value.toInt();
+      Serial.println("set rate ");
+      Serial.println(value);
+    } 
+    else if(strcmp(c, "update") == 0)
+    {
+      _currentLoopState = UpdateMode;
+    }
+    else if(strcmp(c, "reset") == 0)
+    {
+      resetEsp();
+    }
+}//change config
+
 void callbackMqtt(char* topic, byte* payload, unsigned int length) {
  
   Serial.print("Message arrived in topic: ");
   Serial.println(topic);
- 
+  char msgPayload[] = "";
   Serial.print("Message:");
   for (int i = 0; i < length; i++) {
+    msgPayload[i]=(char)payload[i];
     Serial.print((char)payload[i]);
   }
- 
-  Serial.println();
-  Serial.println("-----------------------");
- 
+  String msg = String(msgPayload);
+  String cmd = getCmd(msg);
+  String value = getValue(msg);
+  String id = getIdDeviceMsg(msg);
+  Serial.println(id);
+  Serial.println(msg);
+  Serial.println(cmd);
+  Serial.println(value);
+  
+  //solo se il deviceId corrisponde
+  if(id==idDevice)
+  {
+    Serial.println("Change config .........");
+    changeConfig(cmd, value);
+  }
 }
 
+
+
 void getConfig(){
-  
-  	mqttClient = WEB.createMqttClient(mqttServer, mqttPort, mqttUsername, mqttPassword, idDevice.c_str(), callbackMqtt, &mqttConnected);
-    if (mqttConnected)
-			{
-				char *topic = "/SAEFYCONFIG";
-				mqttClient->publish(topic, "config?");
-        mqttClient->subscribe(topic);
-				//mqttClient->disconnect();
-			}
+  mqttClient = WEB.createMqttClient(mqttServer, mqttPort, mqttUsername, mqttPassword, idDevice.c_str(), callbackMqtt, &mqttConnected);
+  if (mqttConnected)
+    {
+      mqttClient->publish(topic, "config?");
+      mqttClient->subscribe(topic);
+      //mqttClient->disconnect();
+    }
+}
+
+
+void setup() {
+  delay(1000);
+  int deviceId = getIdDevice();
+  idDevice = String(deviceId); 
+  Serial.begin(115200);  
 }
 
 void loop() {
   delay(1000);
   Serial.print("Loop state: ");
   Serial.println(_currentLoopState);
+  //loop per controllo canale config
   if(mqttConnected){
     mqttClient->loop();
   }
@@ -178,6 +221,10 @@ void loop() {
     {
       checkForUpdates();
       _currentLoopState = ConfigUpdate;
+      if (mqttConnected)
+      {
+        mqttClient->disconnect();
+      }
     }
     break;
     case ConfigUpdate:

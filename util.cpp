@@ -1,6 +1,5 @@
 #include "Esp.h"
-#include "ext/HashMap.h"
-
+#include <EEPROM.h>
 char del = ':';
 
 int getIdDevice()
@@ -33,4 +32,3 @@ String getIdDeviceMsg(String msg){
     String id = msg.substring(0, posDel);
     return id;
 }
-

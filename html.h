@@ -98,8 +98,8 @@ const char indexHTML[] = R"=====(
             <form action="/configwifi" method="post">
                 <br>
                 <a class="info">Connect to the following WiFi:</a>
-                <input type="text" name="ssid" placeholder="SSID" required="required" class="input-txt" value="wlan2"/>
-                <input type="text" name="password" placeholder="Password" required="required" class="input-txt" value="mrezniwlankljuc"/>
+                <input type="text" name="ssid" placeholder="SSID" required="required" class="input-txt" value="AMIS-1-00219666CC18"/>
+                <input type="text" name="password" placeholder="Password" required="required" class="input-txt" value="4049fc07d3"/>
                 <br>
                 <div class="login-footer">
                     <button type="submit" class="btn">Submit</button>

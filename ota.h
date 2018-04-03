@@ -1,6 +1,6 @@
 #ifndef OTA_H
 #define OTA_H
 
-void checkForUpdates();
+void checkForUpdates(String deviceId, int fwVersion);
 
 #endif

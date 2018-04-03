@@ -4,8 +4,9 @@
 #include "html.h"
 #include "util.h"
 #include "successPage.h"
-#include "DHT.h"
 #include <EEPROM.h>
+#include <DallasTemperature.h>
+#include <OneWire.h>
 
 //configurazione ap
 #define AP_HOME_PAGE "/"
@@ -13,18 +14,19 @@
 #define WIFI_TIMEOUT_S 30
 
 //definizione pin
-#define DHTTYPE DHT22 // DHT11 or DHT22
-#define DHTPIN  14
+#define TEMP_SENSOR 14
 
 //persistenza dato
 #define SSID_LENGTH 32
 #define PASSWORD_LENGTH 32
 #define RATE_LENGTH 16
 
+#define PROBE_RESOLUTION_STRING_DEC 2
+#define STRING_LENGTH 512
 
 IPAddress IPAp = IPAddress(10, 0, 0, 1);
 
-const char* mqttServer = "192.168.1.65";
+const char* mqttServer = "192.168.20.209";
 const int mqttPort = 1883;
 const char* mqttUsername = "";
 const char* mqttPassword = "";
@@ -33,10 +35,10 @@ char* configtopic = "/SAEFYCONFIG";
 char* tempTopic = "/Temperature";
 
 //configurazione ap
-const char *ssid = "dotcom";
+const char *ssid = "dotcomSaefy";
 const char *passwordAp = "dotcom2018";
 
-String versionFirmware="1.0"; 
+int versionFirmware=10; 
 String idDevice="";
 
 String ssidWifiClient ="";
@@ -45,20 +47,18 @@ String passwordWifiClient = "";
 bool mqttConnected = false;
 
 PubSubClient* mqttClient = nullptr;
+//init librerie x i sensori
+OneWire wireProtocol(TEMP_SENSOR);
+DallasTemperature DS18B20(&wireProtocol);
 
-//working mode setup
+float tempCorrection = 0;
+float temperature = 0.0;
 
-DHT dht(DHTPIN, DHTTYPE);
-unsigned long dhtLast = 0;
-const float avgForce = 10.0;  // Force of which the averaging function is using to affect the reading
-const float avgSkip = 0.5; // Skip the averaging function if the reading difference is bigger than this since last reading
- 
-float avgHumidity, avgTemperature;
  
 char charVal[10];               //temporarily holds data from vals
  
 unsigned long postLast = 0;
-extern int postInterval = 100000; // Post every minute
+int postInterval = 100000; // Post every minute
 
 //persistenza dati 
 const int eepromAddressWifi = 0;
@@ -103,7 +103,7 @@ LoopState _currentLoopState = Startup;
 void handle(){
  	String indexHTMLString = String(indexHTML);
 	indexHTMLString.replace("DEVICE_ID", idDevice);
-	indexHTMLString.replace("FIRMWARE_VER", versionFirmware); 
+	indexHTMLString.replace("FIRMWARE_VER", String(versionFirmware)); 
 	_esp8266WebServer->send(200, "text/html", indexHTMLString);
 }
 
@@ -173,6 +173,17 @@ void changeConfig(String cmd, String value){
     {
       resetEsp();
     }
+    else if(strcmp(c, "clearwifi") == 0)
+    {
+      Serial.println("reset wifi");
+      clearWifiCredential();
+    }
+     else if(strcmp(c, "clear") == 0)
+    {
+      Serial.println("clear eeprom");
+      clearEEprom();
+    }
+
 }//change config
 
 /*
@@ -192,13 +203,14 @@ void callbackMqtt(char* topic, byte* payload, unsigned int length) {
   String cmd = getCmd(msg);
   String value = getValue(msg);
   String id = getIdDeviceMsg(msg);
+  Serial.print("id: ");
   Serial.println(id);
-  Serial.println(msg);
-  Serial.println(cmd);
-  Serial.println(value);
+  // Serial.println(msg);
+  // Serial.println(cmd);
+  // Serial.println(value);
   
   //solo se il deviceId corrisponde e il cmd 
-  if(id==idDevice && cmd!="")
+  if(id.equals(idDevice))
   {
     Serial.println("Change config .........");
     changeConfig(cmd, value);
@@ -219,49 +231,50 @@ void getConfig(){
     }
 }
 
+void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, char* string)
+{
+	//{"DeviceId":11, "ProbeId":1, "Temperature":5}
+
+	strcpy(string, "{");
+
+	strcat(string, "\"DeviceId\":");
+	char deviceIdString[1 + 8 * sizeof(uint32)];
+	utoa(EspClass().getChipId(), deviceIdString, 10);
+	strcat(string, deviceIdString);
+
+	strcat(string, ", ");
+
+	strcat(string, "\"ProbeId\":");
+	char probeIdString[1 + 8 * sizeof(byte)];
+	utoa(probeId, probeIdString, 10);
+	strcat(string, probeIdString);
+
+	strcat(string, ", ");
+
+	strcat(string, "\"");
+	strcat(string, probeName);
+	strcat(string, "\":");
+	char probeValueString[1 + 8 * sizeof(float)];
+	dtostrf(probeValue, 0, PROBE_RESOLUTION_STRING_DEC, probeValueString);
+	strcat(string, probeValueString);
+
+	strcat(string, "}");
+}
+
 void publishTemperature(){
   postLast = millis();
   Serial.println("MQTT:\tPosting temperature...");
-  char* tPayload = dtostrf(avgTemperature, 1, 2, charVal);
-  mqttClient->publish(tempTopic, tPayload);
+  char measurementsPayload[STRING_LENGTH];
+  getMeasurementsPayload(0, "Temperature", temperature, measurementsPayload);
+  Serial.println(measurementsPayload);
+  //char* tPayload = dtostrf(temperature, 1, 2, charVal);
+  mqttClient->publish(tempTopic, measurementsPayload);
 }//publishTemperature
 
-void readDHT()
-{
-
-  float tempHumi = dht.readHumidity();
-  float tempTemp = dht.readTemperature();
- 
-  if (isnan(tempHumi) || isnan(tempTemp))
-  {
-    Serial.println("Failed to read from DHT sensor!");
-    return;
-  }
- 
-  if (abs(tempTemp - avgTemperature) > avgSkip)
-  {
-    avgTemperature = tempTemp;
-  }
-  else
-  {
-    avgTemperature = (avgTemperature *  (100.0-avgForce)/100.0) + ((avgForce/100.0) * tempTemp);
-  }
- 
-  if (abs(tempHumi - avgHumidity) > avgSkip)
-  {
-    avgHumidity = tempHumi;
-  }
-  else
-  {
-    avgHumidity = (avgHumidity * ((100.0-avgForce)/100.0)) + ((avgForce/100.0) * tempHumi);
-  }
- 
-  Serial.print("DHT22:\tHumidity: ");
-  Serial.print(avgHumidity);
-  Serial.print(" %\t");
-  Serial.print("Temperature: ");
-  Serial.print(avgTemperature);
-  Serial.println(" *C ");
+void getTemperature() {
+    DS18B20.requestTemperatures();
+    temperature = DS18B20.getTempCByIndex(0);
+    temperature = temperature + tempCorrection;
 }
 
 //persistenza dati *******
@@ -298,6 +311,18 @@ void readConfigRate(){
   EEPROM.get(eepromAddressRate, configurationRate);
   EEPROM.end();
 }
+
+void clearWifiCredential(){
+  SaveConfigWifi("","");
+}
+
+void clearEEprom(){
+  for (int i = 0; i < 1000; ++i) {
+    EEPROM.write(i, -1);
+  }
+  EEPROM.commit();
+}
+
 //persistenza dati *******
 void setup() {
   delay(1000);
@@ -308,8 +333,8 @@ void setup() {
   readConfigRate(); 
   postInterval = atoi(configurationRate.rate);
  
-  dht.begin();
-  Serial.println("Delaying startup to allow DHT sensor to be started properly...");
+  DS18B20.begin();
+  Serial.println("setup ds18b20 sensor...");
   delay(1000);
 }
 
@@ -371,7 +396,7 @@ void loop() {
     break;
     case UpdateMode:
     {
-      checkForUpdates();
+      checkForUpdates(idDevice,versionFirmware);
       _currentLoopState = ConfigUpdate;
       if (mqttConnected)
       {
@@ -390,6 +415,8 @@ void loop() {
     {
       Serial.print("post last: ");
       Serial.println(postLast);
+      Serial.print("interval: ");
+      Serial.println(postInterval);
       if (millis() - postLast < postInterval)
       {
         Serial.println("wait...");
@@ -397,7 +424,7 @@ void loop() {
       }
       else{
         Serial.println("read temp...");
-        readDHT();
+        getTemperature();
         publishTemperature();
       }
     }

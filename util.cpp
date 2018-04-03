@@ -9,7 +9,7 @@ int getIdDevice()
 
 void resetEsp()
 {
-    ESP.restart();
+    ESP.reset();
 }
 
 String getCmd(String msg){

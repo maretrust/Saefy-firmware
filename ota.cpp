@@ -2,31 +2,29 @@
 #include <ESP8266httpUpdate.h>
 #include <ArduinoOTA.h>
 
-//versione ultimo firmware
-const int FW_VERSION = 1244;
 
 //url repository firmware
-const char* fwUrlBase = "http://192.168.1.65:8888/fota/";
+const char* fwUrlBase = "http://192.168.20.209:8888/fota/";
 
-String getMAC()
-{
-  uint8_t mac[6];
-  char result[14];
-  snprintf( result, sizeof( result ), "%02x%02x%02x%02x%02x%02x", mac[ 0 ], mac[ 1 ], mac[ 2 ], mac[ 3 ], mac[ 4 ], mac[ 5 ] );
- // return String( result );
- return "100";
-}
+// String getMAC()
+// {
+//   uint8_t mac[6];
+//   char result[14];
+//   snprintf( result, sizeof( result ), "%02x%02x%02x%02x%02x%02x", mac[ 0 ], mac[ 1 ], mac[ 2 ], mac[ 3 ], mac[ 4 ], mac[ 5 ] );
+//  // return String( result );
+//  return "100";
+// }
 
-void checkForUpdates() {
-  String mac = getMAC();
+void checkForUpdates(String deviceID, int fwVersion) {
+  
   String fwURL = String( fwUrlBase );
-  fwURL.concat( mac );
+  fwURL.concat( deviceID );
   String fwVersionURL = fwURL;
   fwVersionURL.concat( ".version" );
 
   Serial.println( "Checking for firmware updates." );
-  Serial.print( "MAC address: " );
-  Serial.println( mac );
+  Serial.print( "device id: " );
+  Serial.println( deviceID );
   Serial.print( "Firmware version URL: " );
   Serial.println( fwVersionURL );
   
@@ -34,15 +32,16 @@ void checkForUpdates() {
   httpClient.begin( fwVersionURL );
   int httpCode = httpClient.GET();
   if( httpCode == 200 ) {
-    String newFWVersion = httpClient.getString();
+    //riprendo la versione scritta nel file idDevice.version
+    String newFWVersion = httpClient.getString(); 
     Serial.print( "Current firmware version: " );
-    Serial.println( FW_VERSION );
+    Serial.println( fwVersion );
     Serial.print( "Available firmware version: " );
     Serial.println( newFWVersion );
 
     int newVersion = newFWVersion.toInt();
    
-    if( newVersion > FW_VERSION ) {
+    if( newVersion > fwVersion ) {
       Serial.println( "Preparing to update" );
 
       String fwImageURL = fwURL;

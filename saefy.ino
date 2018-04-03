@@ -26,13 +26,14 @@
 
 IPAddress IPAp = IPAddress(10, 0, 0, 1);
 
-const char* mqttServer = "192.168.20.209";
-const int mqttPort = 1883;
-const char* mqttUsername = "";
-const char* mqttPassword = "";
+const char* mqttServer = "saefy.dotcom.ts.it";
+const int mqttPort = 5783;
+const char* mqttUsername = "saefy";
+const char* mqttPassword = "sdfSDF483EEsd";
 
 char* configtopic = "/SAEFYCONFIG";
-char* tempTopic = "/Temperature";
+String topicDevice = "/SAEFY/";
+//char* tempTopic = "/SAEFY";
 
 //configurazione ap
 const char *ssid = "dotcomSaefy";
@@ -59,6 +60,7 @@ char charVal[10];               //temporarily holds data from vals
  
 unsigned long postLast = 0;
 int postInterval = 100000; // Post every minute
+bool stopRead = false;
 
 //persistenza dati 
 const int eepromAddressWifi = 0;
@@ -178,10 +180,20 @@ void changeConfig(String cmd, String value){
       Serial.println("reset wifi");
       clearWifiCredential();
     }
-     else if(strcmp(c, "clear") == 0)
+    else if(strcmp(c, "clear") == 0)
     {
       Serial.println("clear eeprom");
       clearEEprom();
+    }
+    else if(strcmp(c, "stop") == 0)
+    {
+      if(value.equals("true"))
+      {
+        stopRead = true;
+      }
+      else if(value.equals("false")){
+        stopRead = false;
+      }
     }
 
 }//change config
@@ -238,9 +250,9 @@ void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, cha
 	strcpy(string, "{");
 
 	strcat(string, "\"DeviceId\":");
-	char deviceIdString[1 + 8 * sizeof(uint32)];
-	utoa(EspClass().getChipId(), deviceIdString, 10);
-	strcat(string, deviceIdString);
+	// char deviceIdString[1 + 8 * sizeof(uint32)];
+	// utoa(EspClass().getChipId(), deviceIdString, 10);
+	strcat(string, const_cast<char*>(idDevice.c_str()));
 
 	strcat(string, ", ");
 
@@ -268,7 +280,7 @@ void publishTemperature(){
   getMeasurementsPayload(0, "Temperature", temperature, measurementsPayload);
   Serial.println(measurementsPayload);
   //char* tPayload = dtostrf(temperature, 1, 2, charVal);
-  mqttClient->publish(tempTopic, measurementsPayload);
+  mqttClient->publish(const_cast<char*>(topicDevice.c_str()), measurementsPayload);
 }//publishTemperature
 
 void getTemperature() {
@@ -329,6 +341,7 @@ void setup() {
   Serial.begin(115200); 
   int deviceId = getIdDevice();
   idDevice = String(deviceId);  
+  topicDevice = topicDevice + idDevice;
   //leggo il valore in memoria del rate
   readConfigRate(); 
   postInterval = atoi(configurationRate.rate);
@@ -413,20 +426,22 @@ void loop() {
     break;
     case WorkingMode:
     {
-      Serial.print("post last: ");
-      Serial.println(postLast);
-      Serial.print("interval: ");
-      Serial.println(postInterval);
-      if (millis() - postLast < postInterval)
-      {
-        Serial.println("wait...");
-        break;
-      }
-      else{
-        Serial.println("read temp...");
-        getTemperature();
-        publishTemperature();
-      }
+      if(!stopRead){
+        Serial.print("post last: ");
+        Serial.println(postLast);
+        Serial.print("interval: ");
+        Serial.println(postInterval);
+        if (millis() - postLast < postInterval)
+        {
+          Serial.println("wait...");
+          break;
+        }
+        else{
+          Serial.println("read temp...");
+          getTemperature();
+          publishTemperature();
+        }
+      }//stopRead
     }
     break;
   }//switch

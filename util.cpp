@@ -1,10 +1,17 @@
 #include "Esp.h"
 #include <EEPROM.h>
+#include "string.h"
 char del = ':';
 
-int getIdDevice()
+String getIdDevice()
 {
-    return ESP.getFlashChipId();
+    //return String(ESP.getChipId(), HEX);
+    uint32_t chipid=ESP.getChipId();
+    char clientid[25];
+    snprintf(clientid,25,"%08X",chipid);
+    String id =  String(clientid);
+    int number = (int) strtol( id.c_str(), NULL, 16);
+    return String(number);
 }
 
 void resetEsp()

@@ -7,6 +7,7 @@
 #include <EEPROM.h>
 #include <DallasTemperature.h>
 #include <OneWire.h>
+#include "Esp.h"
 
 //configurazione ap
 #define AP_HOME_PAGE "/"
@@ -33,7 +34,6 @@ const char* mqttPassword = "sdfSDF483EEsd";
 
 char* configtopic = "/SAEFYCONFIG";
 String topicDevice = "/SAEFY/";
-//char* tempTopic = "/SAEFY";
 
 //configurazione ap
 const char *ssid = "dotcomSaefy";
@@ -336,12 +336,15 @@ void clearEEprom(){
 }
 
 //persistenza dati *******
+
+
 void setup() {
   delay(1000);
   Serial.begin(115200); 
-  int deviceId = getIdDevice();
-  idDevice = String(deviceId);  
+  idDevice = getIdDevice();
   topicDevice = topicDevice + idDevice;
+  Serial.print("IdDevice");
+  Serial.println(idDevice);
   //leggo il valore in memoria del rate
   readConfigRate(); 
   postInterval = atoi(configurationRate.rate);

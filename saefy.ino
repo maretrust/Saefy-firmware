@@ -7,7 +7,7 @@
 #include <EEPROM.h>
 #include <DallasTemperature.h>
 #include <OneWire.h>
-#include "Esp.h"
+// #include "led.h"
 
 //configurazione ap
 #define AP_HOME_PAGE "/"
@@ -16,6 +16,8 @@
 
 //definizione pin
 #define TEMP_SENSOR 14
+#define LEDB 13
+#define LEDR 12
 
 //persistenza dato
 #define SSID_LENGTH 32
@@ -88,14 +90,6 @@ enum LoopState
 	WorkingMode,
   UpdateMode,
 };
-//comandi  da inviare via mqtt
-enum cmdMqtt
-{
-	no,
-  rate,
-	update,
-  reset,
-};
 
 ESP8266WebServer* _esp8266WebServer;
 //comincio con lo stato Startup
@@ -148,6 +142,7 @@ void connectWifi(){
 			wiFiConnectionOK = true;
     
 			Serial.println("CONNESSO WIFI");
+      ledOn();
       _currentLoopState = UpdateMode;
 		
 		}//If
@@ -159,6 +154,7 @@ void connectWifi(){
 
 void changeConfig(String cmd, String value){
     char* c = const_cast<char*>(cmd.c_str());
+    char* v = const_cast<char*>(value.c_str());
     if(strcmp(c, "rate") == 0)
     {
       postInterval = value.toInt();
@@ -187,12 +183,20 @@ void changeConfig(String cmd, String value){
     }
     else if(strcmp(c, "stop") == 0)
     {
-      if(value.equals("true"))
+      Serial.print("value stop :");
+      Serial.println(value);
+      Serial.print("xxxx");
+      if(strncmp(v, "true",4) == 0)
       {
         stopRead = true;
+        Serial.print("stop true");
+        Serial.println(stopRead);
       }
-      else if(value.equals("false")){
+      else if(strncmp(v, "false",5) == 0)
+      {
         stopRead = false;
+        Serial.print("stop false");
+        Serial.println(stopRead);
       }
     }
 
@@ -205,8 +209,8 @@ void callbackMqtt(char* topic, byte* payload, unsigned int length) {
  
   Serial.print("Message arrived in topic: ");
   Serial.println(topic);
+  Serial.println("");
   char msgPayload[] = "";
-  Serial.print("Message:");
   for (int i = 0; i < length; i++) {
     msgPayload[i]=(char)payload[i];
     Serial.print((char)payload[i]);
@@ -215,11 +219,11 @@ void callbackMqtt(char* topic, byte* payload, unsigned int length) {
   String cmd = getCmd(msg);
   String value = getValue(msg);
   String id = getIdDeviceMsg(msg);
-  Serial.print("id: ");
+  Serial.println("id: ");
   Serial.println(id);
   // Serial.println(msg);
-  // Serial.println(cmd);
-  // Serial.println(value);
+  Serial.println(cmd);
+  Serial.println(value);
   
   //solo se il deviceId corrisponde e il cmd 
   if(id.equals(idDevice))
@@ -337,6 +341,26 @@ void clearEEprom(){
 
 //persistenza dati *******
 
+//led
+void ledBlink(){
+    digitalWrite(LEDR, false);
+    digitalWrite(LEDB, true);   
+    delay(1000);                       
+    digitalWrite(LEDB, false);          
+}
+
+
+void ledOn(){
+    digitalWrite(LEDB, true);
+    digitalWrite(LEDR, false);  
+}
+
+void ledRed(){
+    digitalWrite(LEDR, true); 
+    digitalWrite(LEDB, false);  
+}
+
+//**********
 
 void setup() {
   delay(1000);
@@ -351,6 +375,11 @@ void setup() {
  
   DS18B20.begin();
   Serial.println("setup ds18b20 sensor...");
+
+  //configLED();
+  pinMode(13, OUTPUT);
+  pinMode(12, OUTPUT);
+  
   delay(1000);
 }
 
@@ -373,6 +402,7 @@ void loop() {
       WEB.connectToWiFi(configurationWifi.ssid, configurationWifi.password, WIFI_TIMEOUT_S);
 		  if (WEB.isConnectedToWiFi())
 		  {
+        ledOn();
         Serial.println("Sono gia conesso al wifi");
         delay(4000);
         //se sono già consesso passo all'upddate
@@ -402,6 +432,7 @@ void loop() {
     break;
     case ProvisioningMode:
     {
+      ledRed();
       _esp8266WebServer->handleClient();
     }
     break;
@@ -429,11 +460,10 @@ void loop() {
     break;
     case WorkingMode:
     {
+      Serial.print("stop ");
+      Serial.println(stopRead);
       if(!stopRead){
-        Serial.print("post last: ");
-        Serial.println(postLast);
-        Serial.print("interval: ");
-        Serial.println(postInterval);
+        ledBlink();
         if (millis() - postLast < postInterval)
         {
           Serial.println("wait...");
@@ -445,6 +475,7 @@ void loop() {
           publishTemperature();
         }
       }//stopRead
+      ledOn();
     }
     break;
   }//switch

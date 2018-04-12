@@ -38,7 +38,7 @@ char* configtopic = "/SAEFYCONFIG";
 String topicDevice = "/SAEFY/";
 
 //configurazione ap
-const char *ssid = "dotcomSaefy";
+const char *ssid = "saefy";
 const char *passwordAp = "dotcom2018";
 
 int versionFirmware=10; 
@@ -88,6 +88,7 @@ enum LoopState
 	ConnectWifi,
   ConfigUpdate,
 	WorkingMode,
+  printMem,
   UpdateMode,
 };
 
@@ -180,6 +181,10 @@ void changeConfig(String cmd, String value){
     {
       Serial.println("clear eeprom");
       clearEEprom();
+    }
+     else if(strcmp(c, "printmem") == 0)
+    {
+      _currentLoopState = printMem;
     }
     else if(strcmp(c, "stop") == 0)
     {
@@ -303,6 +308,7 @@ void SaveConfigWifi(char* ssid, char* psw)
     delay(10);
     EEPROM.put(eepromAddressWifi, configurationWifi);
     yield();
+    EEPROM.commit();
     EEPROM.end();
 }
 
@@ -313,6 +319,7 @@ void SaveConfigRate(char* rate)
     delay(10);
     EEPROM.put(eepromAddressRate, configurationRate);
     yield();
+    EEPROM.commit();
     EEPROM.end();
 }
 
@@ -329,7 +336,7 @@ void readConfigRate(){
 }
 
 void clearWifiCredential(){
-  SaveConfigWifi("","");
+  SaveConfigWifi("X","X");
 }
 
 void clearEEprom(){
@@ -337,6 +344,7 @@ void clearEEprom(){
     EEPROM.write(i, -1);
   }
   EEPROM.commit();
+  EEPROM.end();
 }
 
 //persistenza dati *******
@@ -362,8 +370,21 @@ void ledRed(){
 
 //**********
 
+void reafMem(int ind){
+  byte val = byte(EEPROM.read(ind));
+  Serial.print(ind);
+  Serial.print("\t");
+  Serial.print(val);
+  Serial.print("\t");
+  ind = ind + 1;
+  if(ind%60==0)
+    Serial.println("\t");
+}
+//********
 void setup() {
   delay(1000);
+  //disable watchdogtimer
+  //ESP.wdtDisable();
   Serial.begin(115200); 
   idDevice = getIdDevice();
   topicDevice = topicDevice + idDevice;
@@ -377,16 +398,19 @@ void setup() {
   Serial.println("setup ds18b20 sensor...");
 
   //configLED();
-  pinMode(13, OUTPUT);
-  pinMode(12, OUTPUT);
+  pinMode(LEDB, OUTPUT);
+  pinMode(LEDR, OUTPUT);
   
   delay(1000);
 }
 
+
 void loop() {
   delay(1000);
+  ESP.wdtFeed();
   Serial.print("Loop state: ");
   Serial.println(_currentLoopState);
+  
   //loop per controllo canale config
   if(mqttConnected){
     mqttClient->loop();
@@ -434,11 +458,13 @@ void loop() {
     {
       ledRed();
       _esp8266WebServer->handleClient();
+      yield();
     }
     break;
     case ConnectWifi:
     {
       connectWifi();
+      
     }
     break;
     case UpdateMode:
@@ -458,6 +484,13 @@ void loop() {
       _currentLoopState = WorkingMode;
     }
     break;
+    case printMem:
+    {
+        for (int a = 0; a<512; a++){
+          reafMem(a);
+        }
+        _currentLoopState = WorkingMode;
+    }break;
     case WorkingMode:
     {
       Serial.print("stop ");

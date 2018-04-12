@@ -35,7 +35,7 @@ public:
 private:
 	ESP8266WiFiClass* _wiFi;
 	
-	ESP8266WebServer _webServer;
+
 	void handleNotFound();
 	
 	WiFiClient _tcpClient;

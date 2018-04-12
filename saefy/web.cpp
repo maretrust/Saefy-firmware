@@ -1,5 +1,7 @@
 #include "Web.h"
 
+ESP8266WebServer _webServer(80);
+
 Web WEB = Web();
 
 
@@ -125,7 +127,8 @@ void Web::handleNotFound()
 }
 ESP8266WebServer* Web::createWebServer()
 {
-	_webServer = ESP8266WebServer(80);
+    
+	//_webServer = ESP8266WebServer(80);
 	_webServer.onNotFound(std::bind(&Web::handleNotFound, this));
 	_webServer.begin();
 	Serial.println(F("HTTP server started"));

@@ -7,6 +7,7 @@
 #include <EEPROM.h>
 #include <DallasTemperature.h>
 #include <OneWire.h>
+#include <Ticker.h>
 // #include "led.h"
 
 //configurazione ap
@@ -18,6 +19,11 @@
 #define TEMP_SENSOR 14
 #define LEDB 13
 #define LEDR 12
+#define BUTTON 0
+
+//timers
+Ticker buttonTimer;
+unsigned long pressedCount = 0;
 
 //persistenza dato
 #define SSID_LENGTH 32
@@ -340,10 +346,11 @@ void clearWifiCredential(){
 }
 
 void clearEEprom(){
-  for (int i = 0; i < 1000; ++i) {
-    EEPROM.write(i, -1);
+  EEPROM.begin(512);
+  // write a 0 to all 512 bytes of the EEPROM
+  for (int i = 0; i < 512; i++) {
+    EEPROM.write(i, 0);
   }
-  EEPROM.commit();
   EEPROM.end();
 }
 
@@ -366,6 +373,23 @@ void ledOn(){
 void ledRed(){
     digitalWrite(LEDR, true); 
     digitalWrite(LEDB, false);  
+}
+
+//button
+void button() {
+  if (!digitalRead(BUTTON)) {
+    pressedCount++;
+  }
+  else {
+    if (pressedCount > 50) {
+      Serial.println("Več kot 5 sekund je mimo, brišem eeprom!");
+      clearEEprom();
+      _currentLoopState = Startup;
+      
+    }
+    
+  pressedCount = 0;
+  }
 }
 
 //**********
@@ -400,6 +424,8 @@ void setup() {
   //configLED();
   pinMode(LEDB, OUTPUT);
   pinMode(LEDR, OUTPUT);
+  pinMode(BUTTON, INPUT_PULLUP);
+  buttonTimer.attach(0.1, button);
   
   delay(1000);
 }

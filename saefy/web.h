@@ -25,6 +25,8 @@ public:
 	void connectToWiFi(const char *ssid, const char *password, byte timeout_s);
 	bool isConnectedToWiFi();
 	void disableWiFi();
+
+	int32_t getStrengthSignal();
 	
 	ESP8266WebServer* createWebServer();
 

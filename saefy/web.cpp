@@ -108,6 +108,15 @@ void Web::disableWiFi()
 	_wiFi->mode(WIFI_OFF);
 }
 
+int32_t Web::getStrengthSignal(){
+	if (_wiFi->status() == WL_CONNECTED)
+	{
+		return _wiFi->RSSI();
+	}
+	else{
+		return 0;
+	}
+}
 
 void Web::handleNotFound()
 {

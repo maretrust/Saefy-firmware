@@ -436,6 +436,10 @@ void loop() {
   ESP.wdtFeed();
   Serial.print("Loop state: ");
   Serial.println(_currentLoopState);
+ 
+  long rssi = WEB.getStrengthSignal();
+  Serial.print("Strength signal: ");
+  Serial.println(rssi);
   
   //loop per controllo canale config
   if(mqttConnected){
@@ -519,8 +523,6 @@ void loop() {
     }break;
     case WorkingMode:
     {
-      Serial.print("stop ");
-      Serial.println(stopRead);
       if(!stopRead){
         ledBlink();
         if (millis() - postLast < postInterval)
@@ -529,7 +531,6 @@ void loop() {
           break;
         }
         else{
-          Serial.println("read temp...");
           getTemperature();
           publishTemperature();
         }

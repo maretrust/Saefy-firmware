@@ -35,6 +35,9 @@ unsigned long pressedCount = 0;
 
 IPAddress IPAp = IPAddress(10, 0, 0, 1);
 
+//extern Web WEB;
+
+
 const char* mqttServer = "saefy.dotcom.ts.it";
 const int mqttPort = 5783;
 const char* mqttUsername = "saefy";
@@ -69,10 +72,13 @@ char charVal[10];               //temporarily holds data from vals
 unsigned long postLast = 0;
 int postInterval = 100000; // Post every minute
 bool stopRead = false;
+extern bool persistentConn = true;
+long rssi = -1;
 
 //persistenza dati 
 const int eepromAddressWifi = 0;
 const int eepromAddressRate = 65;
+const int eepromAddressPersistent = 95;
 
 struct saefyConfigWifi
 {
@@ -85,6 +91,11 @@ struct saefyConfigRate
    char rate[RATE_LENGTH];
 }configurationRate;
 
+struct saefyConfigPersistent
+{
+   char rate[RATE_LENGTH];
+}configurationPersistent;
+
 //diversi stati per definire le fasi di funzionamento
 enum LoopState
 {
@@ -92,6 +103,7 @@ enum LoopState
 	EnteringProvisioningMode,
   ProvisioningMode,
 	ConnectWifi,
+  catchWifi,
   ConfigUpdate,
 	WorkingMode,
   printMem,
@@ -159,6 +171,24 @@ void connectWifi(){
     }
 }
 
+void catchtWifi(){
+    bool wiFiConnectionOK = false;
+    bool tcpServerConnectionOK = false;
+    //tento la conessione
+    readConfigWifi();
+    WEB.connectToWiFi(configurationWifi.ssid, configurationWifi.password, WIFI_TIMEOUT_S);
+    if (WEB.isConnectedToWiFi())
+    {
+     
+      wiFiConnectionOK = true;
+    
+      Serial.println("CONNESSO WIFI");
+      ledOn();
+      _currentLoopState = WorkingMode;
+    
+    }//If
+}
+
 void changeConfig(String cmd, String value){
     char* c = const_cast<char*>(cmd.c_str());
     char* v = const_cast<char*>(value.c_str());
@@ -194,21 +224,27 @@ void changeConfig(String cmd, String value){
     }
     else if(strcmp(c, "stop") == 0)
     {
-      Serial.print("value stop :");
-      Serial.println(value);
-      Serial.print("xxxx");
       if(strncmp(v, "true",4) == 0)
       {
         stopRead = true;
-        Serial.print("stop true");
-        Serial.println(stopRead);
       }
       else if(strncmp(v, "false",5) == 0)
       {
         stopRead = false;
-        Serial.print("stop false");
-        Serial.println(stopRead);
       }
+    }
+    else if(strcmp(c, "persistent") == 0)
+    {
+      if(strncmp(v, "true",4) == 0)
+      {
+        persistentConn = true;
+      }
+      else if(strncmp(v, "false",5) == 0)
+      {
+        persistentConn = false;
+      }
+      Serial.print("PC ");
+      Serial.println(persistentConn);
     }
 
 }//change config
@@ -265,8 +301,7 @@ void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, cha
 	strcpy(string, "{");
 
 	strcat(string, "\"DeviceId\":");
-	// char deviceIdString[1 + 8 * sizeof(uint32)];
-	// utoa(EspClass().getChipId(), deviceIdString, 10);
+	
 	strcat(string, const_cast<char*>(idDevice.c_str()));
 
 	strcat(string, ", ");
@@ -284,6 +319,27 @@ void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, cha
 	char probeValueString[1 + 8 * sizeof(float)];
 	dtostrf(probeValue, 0, PROBE_RESOLUTION_STRING_DEC, probeValueString);
 	strcat(string, probeValueString);
+
+  strcat(string, ", ");
+  strcat(string, "\"R\":");
+  char cstr[16];
+  itoa(postInterval,  cstr, 10);
+  
+  strcat(string, cstr);
+	strcat(string, ", ");
+
+  strcat(string, "\"S\":");
+  strcat(string, const_cast<char*>(stopRead ? "true" : "false"));
+	strcat(string, ", ");
+ 
+  strcat(string, "\"P\":");
+  strcat(string, const_cast<char*>(persistentConn ? "true" : "false"));
+	strcat(string, ", ");
+
+  strcat(string, "\"SW\":");
+  char crssi[16];
+  ltoa(rssi,  crssi, 10);
+  strcat(string, crssi);
 
 	strcat(string, "}");
 }
@@ -406,7 +462,9 @@ void reafMem(int ind){
 }
 //********
 void setup() {
-  delay(1000);
+//  delay(1000);
+  WEB = Web();
+
   //disable watchdogtimer
   //ESP.wdtDisable();
   Serial.begin(115200); 
@@ -427,20 +485,20 @@ void setup() {
   pinMode(BUTTON, INPUT_PULLUP);
   buttonTimer.attach(0.1, button);
   
-  delay(1000);
+  //delay(1000);
 }
 
 
 void loop() {
-  delay(1000);
-  ESP.wdtFeed();
+ 
+  //ESP.wdtFeed();
   Serial.print("Loop state: ");
   Serial.println(_currentLoopState);
  
-  long rssi = WEB.getStrengthSignal();
+  rssi = WEB.getStrengthSignal();
   Serial.print("Strength signal: ");
   Serial.println(rssi);
-  
+  delay(1000);
   //loop per controllo canale config
   if(mqttConnected){
     mqttClient->loop();
@@ -493,8 +551,13 @@ void loop() {
     break;
     case ConnectWifi:
     {
-      connectWifi();
-      
+      connectWifi(); 
+    }
+    break;
+    case catchWifi:
+    {
+      Serial.println("catch connection ...");
+      catchtWifi();
     }
     break;
     case UpdateMode:
@@ -523,19 +586,41 @@ void loop() {
     }break;
     case WorkingMode:
     {
-      if(!stopRead){
-        ledBlink();
-        if (millis() - postLast < postInterval)
-        {
-          Serial.println("wait...");
-          break;
-        }
-        else{
-          getTemperature();
-          publishTemperature();
-        }
-      }//stopRead
-      ledOn();
+      if(rssi==0){
+        setup();
+        _currentLoopState = catchWifi;
+      }
+      else{
+        if(!stopRead){
+          ledBlink();
+          if (millis() - postLast < postInterval)
+          {
+            Serial.println("wait...");
+            break;
+          }
+          else{
+            Serial.print("peristent...");
+            Serial.println(persistentConn);
+            Serial.print("wifi...");
+            Serial.println(WEB.isConnectedToWiFi());
+            if(!persistentConn && !WEB.isConnectedToWiFi()){
+               connectWifi();
+            }
+            
+            getTemperature();
+            publishTemperature();
+  
+            if(!persistentConn){
+              //disconnect wifi
+              delay(1000);
+              Serial.println("disconnect peristent...");
+              WEB.disableWiFi();
+             
+            }//persistent connection = false
+          }
+        }//stopRead
+        ledOn();
+      }//rssi=0
     }
     break;
   }//switch

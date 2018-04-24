@@ -47,7 +47,7 @@ char* configtopic = "/SAEFYCONFIG";
 String topicDevice = "/SAEFY/";
 
 //configurazione ap
-const char *ssid = "saefy";
+char *ssid = "saefy";
 const char *passwordAp = "dotcom2018";
 
 int versionFirmware=10; 
@@ -72,13 +72,13 @@ char charVal[10];               //temporarily holds data from vals
 unsigned long postLast = 0;
 int postInterval = 100000; // Post every minute
 bool stopRead = false;
-extern bool persistentConn = true;
+
 long rssi = -1;
 
 //persistenza dati 
 const int eepromAddressWifi = 0;
 const int eepromAddressRate = 65;
-const int eepromAddressPersistent = 95;
+const int eepromAddressPsc = 95;
 
 struct saefyConfigWifi
 {
@@ -90,11 +90,6 @@ struct saefyConfigRate
 {
    char rate[RATE_LENGTH];
 }configurationRate;
-
-struct saefyConfigPersistent
-{
-   char rate[RATE_LENGTH];
-}configurationPersistent;
 
 //diversi stati per definire le fasi di funzionamento
 enum LoopState
@@ -171,7 +166,7 @@ void connectWifi(){
     }
 }
 
-void catchtWifi(){
+void recuperaWifi(){
     bool wiFiConnectionOK = false;
     bool tcpServerConnectionOK = false;
     //tento la conessione
@@ -184,6 +179,7 @@ void catchtWifi(){
     
       Serial.println("CONNESSO WIFI");
       ledOn();
+      connectMqtt();
       _currentLoopState = WorkingMode;
     
     }//If
@@ -233,19 +229,6 @@ void changeConfig(String cmd, String value){
         stopRead = false;
       }
     }
-    else if(strcmp(c, "persistent") == 0)
-    {
-      if(strncmp(v, "true",4) == 0)
-      {
-        persistentConn = true;
-      }
-      else if(strncmp(v, "false",5) == 0)
-      {
-        persistentConn = false;
-      }
-      Serial.print("PC ");
-      Serial.println(persistentConn);
-    }
 
 }//change config
 
@@ -284,11 +267,15 @@ void callbackMqtt(char* topic, byte* payload, unsigned int length) {
 /*
 Creo il client mqtt e mi registro al topic di configurazione
 */
-void getConfig(){
+void connectMqtt(){
+  Serial.println("Mqtt connect11111: ");
   mqttClient = WEB.createMqttClient(mqttServer, mqttPort, mqttUsername, mqttPassword, idDevice.c_str(), callbackMqtt, &mqttConnected);
+  Serial.print("Mqtt connect: ");
+  Serial.println(mqttConnected);
   if (mqttConnected)
     {
-      mqttClient->publish(configtopic, "config?");
+     
+      mqttClient->publish(configtopic, idDevice.c_str());
       mqttClient->subscribe(configtopic);
       //mqttClient->disconnect();
     }
@@ -330,10 +317,6 @@ void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, cha
 
   strcat(string, "\"S\":");
   strcat(string, const_cast<char*>(stopRead ? "true" : "false"));
-	strcat(string, ", ");
- 
-  strcat(string, "\"P\":");
-  strcat(string, const_cast<char*>(persistentConn ? "true" : "false"));
 	strcat(string, ", ");
 
   strcat(string, "\"SW\":");
@@ -485,7 +468,7 @@ void setup() {
   pinMode(BUTTON, INPUT_PULLUP);
   buttonTimer.attach(0.1, button);
   
-  //delay(1000);
+  delay(1000);
 }
 
 
@@ -500,14 +483,18 @@ void loop() {
   Serial.println(rssi);
   delay(1000);
   //loop per controllo canale config
+  Serial.print("Mqtt: ");
+  Serial.println(mqttConnected);
   if(mqttConnected){
     mqttClient->loop();
   }
+  
   switch (_currentLoopState)
 	{
     case Startup:
     {
       readConfigWifi();
+      
       Serial.println("wifi: ");
       Serial.println(configurationWifi.ssid);
       Serial.println(configurationWifi.password);
@@ -525,6 +512,8 @@ void loop() {
         //nello stato di Startup avvio l'access point con l'utilizzo di funzione della
         //libreria web.h
         Serial.println("Avvio AP");
+        char* id = const_cast<char*>(idDevice.c_str());
+        strcat(ssid,id);
         WEB.createAccessPoint(IPAp, ssid, passwordAp);
         _esp8266WebServer = WEB.createWebServer();
         //passo al secondo stato
@@ -557,23 +546,19 @@ void loop() {
     case catchWifi:
     {
       Serial.println("catch connection ...");
-      catchtWifi();
+      recuperaWifi();
     }
     break;
     case UpdateMode:
     {
       checkForUpdates(idDevice,versionFirmware);
       _currentLoopState = ConfigUpdate;
-      if (mqttConnected)
-      {
-        mqttClient->disconnect();
-      }
     }
     break;
     case ConfigUpdate:
     {
-      //mqtt config download
-      getConfig();
+      //mqtt connect
+      connectMqtt();
       _currentLoopState = WorkingMode;
     }
     break;
@@ -591,6 +576,11 @@ void loop() {
         _currentLoopState = catchWifi;
       }
       else{
+        if(!mqttConnected){
+          Serial.print("Connected mqtt: ");
+          Serial.println(mqttConnected);
+          connectMqtt();
+        }
         if(!stopRead){
           ledBlink();
           if (millis() - postLast < postInterval)
@@ -599,24 +589,12 @@ void loop() {
             break;
           }
           else{
-            Serial.print("peristent...");
-            Serial.println(persistentConn);
             Serial.print("wifi...");
             Serial.println(WEB.isConnectedToWiFi());
-            if(!persistentConn && !WEB.isConnectedToWiFi()){
-               connectWifi();
-            }
-            
+          
             getTemperature();
             publishTemperature();
   
-            if(!persistentConn){
-              //disconnect wifi
-              delay(1000);
-              Serial.println("disconnect peristent...");
-              WEB.disableWiFi();
-             
-            }//persistent connection = false
           }
         }//stopRead
         ledOn();

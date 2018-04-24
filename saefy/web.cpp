@@ -106,6 +106,8 @@ void Web::disableWiFi()
 	_wiFi->persistent(false);
 	_wiFi->disconnect(true);
 	_wiFi->mode(WIFI_OFF);
+ // _wiFi->forceSleepBegin();
+  //delay(1);
 }
 
 int32_t Web::getStrengthSignal(){

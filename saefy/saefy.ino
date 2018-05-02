@@ -586,7 +586,7 @@ void loop() {
         if(!mqttConnected){
           Serial.print("Connected mqtt: ");
           Serial.println(mqttConnected);
-          connectMqtt();
+          _currentLoopState = ConfigUpdate;
         }
         if(!stopRead){
           ledBlink();

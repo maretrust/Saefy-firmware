@@ -4,7 +4,7 @@
 
 
 //url repository firmware
-const char* fwUrlBase = "http://192.168.20.209:8888/fota/";
+const char* fwUrlBase = "http://saefy.dotcom.ts.it:8888/fota/";
 
 // String getMAC()
 // {

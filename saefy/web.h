@@ -33,7 +33,6 @@ public:
 	PubSubClient* createMqttClient(const char* broker, uint16_t port, const char* username, const char* password, const char* id, bool* connected);
 	PubSubClient* createMqttClient(const char* broker, uint16_t port, const char* username, const char* password, const char* id, std::function<void(char*, byte*, uint16_t)> callback, bool* connected);
 
-
 private:
 	ESP8266WiFiClass* _wiFi;
 	

@@ -427,6 +427,7 @@ void button() {
     if (pressedCount > 50) {
       Serial.println("Več kot 5 sekund je mimo, brišem eeprom!");
       clearEEprom();
+      setup();
       _currentLoopState = Startup;
       
     }

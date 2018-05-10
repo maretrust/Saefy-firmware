@@ -569,15 +569,16 @@ void loop() {
       _currentLoopState = WorkingMode;
     }
     break;
-    case printMem:
-    {
-        for (int a = 0; a<512; a++){
-          reafMem(a);
-        }
-        _currentLoopState = WorkingMode;
-    }break;
+    // case printMem:
+    // {
+    //     for (int a = 0; a<512; a++){
+    //       reafMem(a);
+    //     }
+    //     _currentLoopState = WorkingMode;
+    // }break;
     case WorkingMode:
     {
+      rssi = WEB.getStrengthSignal();
       if(rssi==0){
         setup();
         _currentLoopState = catchWifi;

@@ -35,9 +35,7 @@ unsigned long pressedCount = 0;
 
 IPAddress IPAp = IPAddress(10, 0, 0, 1);
 
-//configurazione ap
-char* ssid = "SF";
-const char *passwordAp = "dotcom2018";
+
 
 //extern Web WEB;
 
@@ -49,12 +47,14 @@ const char* mqttPassword = "sdfSDF483EEsd";
 char* configtopic = "/SAEFYCONFIG";
 String topicDevice = "/SAEFY/";
 
+//configurazione ap
+char* ssid = "SF";
+const char *passwordAp = "dotcom2018";
 
+int versionFirmware = 10;
+String idDevice = "";
 
-int versionFirmware=10; 
-String idDevice="";
-
-String ssidWifiClient ="";
+String ssidWifiClient = "";
 String passwordWifiClient = "";
 
 bool mqttConnected = false;
@@ -67,30 +67,30 @@ DallasTemperature DS18B20(&wireProtocol);
 float tempCorrection = 0;
 float temperature = 0.0;
 
- 
+
 char charVal[10];               //temporarily holds data from vals
- 
+
 unsigned long postLast = 0;
 int postInterval = 100000; // Post every minute
 bool stopRead = false;
 
 long rssi = -1;
 
-//persistenza dati 
+//persistenza dati
 const int eepromAddressWifi = 0;
 const int eepromAddressRate = 65;
 const int eepromAddressPsc = 95;
 
 struct saefyConfigWifi
 {
-    char ssid[SSID_LENGTH];
-    char password[PASSWORD_LENGTH];
-}configurationWifi;
+  char ssid[SSID_LENGTH];
+  char password[PASSWORD_LENGTH];
+} configurationWifi;
 
 struct saefyConfigRate
 {
-   char rate[RATE_LENGTH];
-}configurationRate;
+  char rate[RATE_LENGTH];
+} configurationRate;
 
 //diversi stati per definire le fasi di funzionamento
 enum LoopState
@@ -111,140 +111,140 @@ ESP8266WebServer* _esp8266WebServer;
 LoopState _currentLoopState = Startup;
 
 
-void handle(){
+void handle() {
   String indexHTMLString = String(indexHTML);
   indexHTMLString.replace("DEVICE_ID", idDevice);
-  indexHTMLString.replace("FIRMWARE_VER", String(versionFirmware)); 
+  indexHTMLString.replace("FIRMWARE_VER", String(versionFirmware));
   _esp8266WebServer->send(200, "text/html", indexHTMLString);
 }
 
 //la funzione intercetta il posta anella pagina di configurazione
-void handleConfigWifi(){
+void handleConfigWifi() {
   // if (_esp8266WebServer->hasArg("ssid") && _esp8266WebServer->hasArg("password"))
   //  {
-      String successHTMLString = String(successHTML);
-      ssidWifiClient = _esp8266WebServer->arg("ssid").c_str();
-      passwordWifiClient = _esp8266WebServer->arg("password").c_str();
-    
-      Serial.println("Data posted from web page:");
-      Serial.print("ssid: ");
-      Serial.println(ssidWifiClient);
-      Serial.print("password: ");
-      Serial.println(passwordWifiClient);
-      //successHTMLString
-      _esp8266WebServer->send(200, "text/html", successHTMLString);
-      //riprendo i dati e vado avanti
-      _currentLoopState = ConnectWifi;
-    //}//if
+  String successHTMLString = String(successHTML);
+  ssidWifiClient = _esp8266WebServer->arg("ssid").c_str();
+  passwordWifiClient = _esp8266WebServer->arg("password").c_str();
+
+  Serial.println("Data posted from web page:");
+  Serial.print("ssid: ");
+  Serial.println(ssidWifiClient);
+  Serial.print("password: ");
+  Serial.println(passwordWifiClient);
+  //successHTMLString
+  _esp8266WebServer->send(200, "text/html", successHTMLString);
+  //riprendo i dati e vado avanti
+  _currentLoopState = ConnectWifi;
+  //}//if
 }//handleCONFIGWIFI
 
-void connectWifi(){
-    //chiudio il server
-    _esp8266WebServer->stop();
-    bool wiFiConnectionOK = false;
-    bool tcpServerConnectionOK = false;
-    //tento la conessione
-    
-    WEB.connectToWiFi(ssidWifiClient.c_str(), passwordWifiClient.c_str(), WIFI_TIMEOUT_S);
-    if (WEB.isConnectedToWiFi())
-    {
-     
-      char* s = const_cast<char*>(ssidWifiClient.c_str());
-      char* p = const_cast<char*>(passwordWifiClient.c_str());
-      //persisto i dati
-      SaveConfigWifi(s,p);
+void connectWifi() {
+  //chiudio il server
+  _esp8266WebServer->stop();
+  bool wiFiConnectionOK = false;
+  bool tcpServerConnectionOK = false;
+  //tento la conessione
 
-      wiFiConnectionOK = true;
-    
-      Serial.println("CONNESSO WIFI");
-      ledOn();
-      _currentLoopState = UpdateMode;
-    
-    }//If
-    else{
-      //ritorno indietro all'access point
-      _currentLoopState = Startup;
-    }
+  WEB.connectToWiFi(ssidWifiClient.c_str(), passwordWifiClient.c_str(), WIFI_TIMEOUT_S);
+  if (WEB.isConnectedToWiFi())
+  {
+
+    char* s = const_cast<char*>(ssidWifiClient.c_str());
+    char* p = const_cast<char*>(passwordWifiClient.c_str());
+    //persisto i dati
+    SaveConfigWifi(s, p);
+
+    wiFiConnectionOK = true;
+
+    Serial.println("CONNESSO WIFI");
+    ledOn();
+    _currentLoopState = UpdateMode;
+
+  }//If
+  else {
+    //ritorno indietro all'access point
+    _currentLoopState = Startup;
+  }
 }
 
-void recuperaWifi(){
-    bool wiFiConnectionOK = false;
-    bool tcpServerConnectionOK = false;
-    //tento la conessione
-    readConfigWifi();
-    WEB.connectToWiFi(configurationWifi.ssid, configurationWifi.password, WIFI_TIMEOUT_S);
-    if (WEB.isConnectedToWiFi())
-    {
-     
-      wiFiConnectionOK = true;
-    
-      Serial.println("CONNESSO WIFI");
-      ledOn();
+void recuperaWifi() {
+  bool wiFiConnectionOK = false;
+  bool tcpServerConnectionOK = false;
+  //tento la conessione
+  readConfigWifi();
+  WEB.connectToWiFi(configurationWifi.ssid, configurationWifi.password, WIFI_TIMEOUT_S);
+  if (WEB.isConnectedToWiFi())
+  {
+
+    wiFiConnectionOK = true;
+
+    Serial.println("CONNESSO WIFI");
+    ledOn();
     //  connectMqtt();
-     // _currentLoopState = WorkingMode;
-      _currentLoopState = ConfigUpdate;
-    
-    }//If
+    // _currentLoopState = WorkingMode;
+    _currentLoopState = ConfigUpdate;
+
+  }//If
 }
 
-void changeConfig(String cmd, String value){
-    char* c = const_cast<char*>(cmd.c_str());
-    char* v = const_cast<char*>(value.c_str());
-    if(strcmp(c, "rate") == 0)
+void changeConfig(String cmd, String value) {
+  char* c = const_cast<char*>(cmd.c_str());
+  char* v = const_cast<char*>(value.c_str());
+  if (strcmp(c, "rate") == 0)
+  {
+    postInterval = value.toInt();
+    //salvo in memoria il rate
+    SaveConfigRate(const_cast<char*>(value.c_str()));
+    Serial.println("set rate ");
+    Serial.println(value);
+  }
+  else if (strcmp(c, "update") == 0)
+  {
+    _currentLoopState = UpdateMode;
+  }
+  else if (strcmp(c, "reset") == 0)
+  {
+    resetEsp();
+  }
+  else if (strcmp(c, "clearwifi") == 0)
+  {
+    Serial.println("reset wifi");
+    clearWifiCredential();
+  }
+  else if (strcmp(c, "clear") == 0)
+  {
+    Serial.println("clear eeprom");
+    clearEEprom();
+  }
+  else if (strcmp(c, "printmem") == 0)
+  {
+    _currentLoopState = printMem;
+  }
+  else if (strcmp(c, "stop") == 0)
+  {
+    if (strncmp(v, "true", 4) == 0)
     {
-      postInterval = value.toInt();
-      //salvo in memoria il rate
-      SaveConfigRate(const_cast<char*>(value.c_str()));
-      Serial.println("set rate ");
-      Serial.println(value);
-    } 
-    else if(strcmp(c, "update") == 0)
-    {
-      _currentLoopState = UpdateMode;
+      stopRead = true;
     }
-    else if(strcmp(c, "reset") == 0)
+    else if (strncmp(v, "false", 5) == 0)
     {
-      resetEsp();
+      stopRead = false;
     }
-    else if(strcmp(c, "clearwifi") == 0)
-    {
-      Serial.println("reset wifi");
-      clearWifiCredential();
-    }
-    else if(strcmp(c, "clear") == 0)
-    {
-      Serial.println("clear eeprom");
-      clearEEprom();
-    }
-     else if(strcmp(c, "printmem") == 0)
-    {
-      _currentLoopState = printMem;
-    }
-    else if(strcmp(c, "stop") == 0)
-    {
-      if(strncmp(v, "true",4) == 0)
-      {
-        stopRead = true;
-      }
-      else if(strncmp(v, "false",5) == 0)
-      {
-        stopRead = false;
-      }
-    }
+  }
 
 }//change config
 
 /*
-Procedura di callback, viene invocata quando presente un nuovo msg nel topic config
+  Procedura di callback, viene invocata quando presente un nuovo msg nel topic config
 */
 void callbackMqtt(char* topic, byte* payload, unsigned int length) {
- 
+
   Serial.print("Message arrived in topic: ");
   Serial.println(topic);
   Serial.println("");
   char msgPayload[] = "";
   for (int i = 0; i < length; i++) {
-    msgPayload[i]=(char)payload[i];
+    msgPayload[i] = (char)payload[i];
     Serial.print((char)payload[i]);
   }
   String msg = String(msgPayload);
@@ -256,9 +256,9 @@ void callbackMqtt(char* topic, byte* payload, unsigned int length) {
   // Serial.println(msg);
   Serial.println(cmd);
   Serial.println(value);
-  
-  //solo se il deviceId corrisponde e il cmd 
-  if(id.equals(idDevice))
+
+  //solo se il deviceId corrisponde e il cmd
+  if (id.equals(idDevice))
   {
     Serial.println("Change config .........");
     changeConfig(cmd, value);
@@ -266,19 +266,19 @@ void callbackMqtt(char* topic, byte* payload, unsigned int length) {
 }
 
 /*
-Creo il client mqtt e mi registro al topic di configurazione
+  Creo il client mqtt e mi registro al topic di configurazione
 */
-void connectMqtt(){
+void connectMqtt() {
   Serial.println("Mqtt connect11111: ");
   mqttClient = WEB.createMqttClient(mqttServer, mqttPort, mqttUsername, mqttPassword, idDevice.c_str(), callbackMqtt, &mqttConnected);
- 
+
   if (mqttConnected)
-    {
-     
-      mqttClient->publish(configtopic, idDevice.c_str());
-      mqttClient->subscribe(configtopic);
-      //mqttClient->disconnect();
-    }
+  {
+
+    mqttClient->publish(configtopic, idDevice.c_str());
+    mqttClient->subscribe(configtopic);
+    //mqttClient->disconnect();
+  }
 }
 
 void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, char* string)
@@ -288,7 +288,7 @@ void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, cha
   strcpy(string, "{");
 
   strcat(string, "\"DeviceId\":");
-  
+
   strcat(string, const_cast<char*>(idDevice.c_str()));
 
   strcat(string, ", ");
@@ -311,7 +311,7 @@ void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, cha
   strcat(string, "\"R\":");
   char cstr[16];
   itoa(postInterval,  cstr, 10);
-  
+
   strcat(string, cstr);
   strcat(string, ", ");
 
@@ -327,7 +327,7 @@ void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, cha
   strcat(string, "}");
 }
 
-void publishTemperature(){
+void publishTemperature() {
   postLast = millis();
   Serial.println("MQTT:\tPosting temperature...");
   char measurementsPayload[STRING_LENGTH];
@@ -341,54 +341,54 @@ void publishTemperature(){
 }//publishTemperature
 
 void getTemperature() {
-    DS18B20.requestTemperatures();
-    temperature = DS18B20.getTempCByIndex(0);
-    temperature = temperature + tempCorrection;
+  DS18B20.requestTemperatures();
+  temperature = DS18B20.getTempCByIndex(0);
+  temperature = temperature + tempCorrection;
 }
 
 //persistenza dati *******
 
 void SaveConfigWifi(char* ssid, char* psw)
 {
-    strcpy(configurationWifi.ssid, ssid);
-    strcpy(configurationWifi.password, psw);
-    EEPROM.begin(512);
-    delay(10);
-    EEPROM.put(eepromAddressWifi, configurationWifi);
-    yield();
-    EEPROM.commit();
-    EEPROM.end();
+  strcpy(configurationWifi.ssid, ssid);
+  strcpy(configurationWifi.password, psw);
+  EEPROM.begin(512);
+  delay(10);
+  EEPROM.put(eepromAddressWifi, configurationWifi);
+  yield();
+  EEPROM.commit();
+  EEPROM.end();
 }
 
 void SaveConfigRate(char* rate)
 {
-    strcpy(configurationRate.rate, rate);
-    EEPROM.begin(512);
-    delay(10);
-    EEPROM.put(eepromAddressRate, configurationRate);
-    yield();
-    EEPROM.commit();
-    EEPROM.end();
+  strcpy(configurationRate.rate, rate);
+  EEPROM.begin(512);
+  delay(10);
+  EEPROM.put(eepromAddressRate, configurationRate);
+  yield();
+  EEPROM.commit();
+  EEPROM.end();
 }
 
-void readConfigWifi(){
+void readConfigWifi() {
   EEPROM.begin(512);
   EEPROM.get(eepromAddressWifi, configurationWifi);
   EEPROM.end();
 }
 
-void readConfigRate(){
+void readConfigRate() {
   EEPROM.begin(512);
   EEPROM.get(eepromAddressRate, configurationRate);
   EEPROM.end();
 }
 
-void clearWifiCredential(){
-  SaveConfigWifi("X","X");
+void clearWifiCredential() {
+  SaveConfigWifi("X", "X");
   //clearEEprom();
 }
 
-void clearEEprom(){
+void clearEEprom() {
   EEPROM.begin(512);
   // write a 0 to all 512 bytes of the EEPROM
   for (int i = 0; i < 512; i++) {
@@ -400,22 +400,22 @@ void clearEEprom(){
 //persistenza dati *******
 
 //led
-void ledBlink(){
-    digitalWrite(LEDR, false);
-    digitalWrite(LEDB, true);   
-    delay(1000);                       
-    digitalWrite(LEDB, false);          
+void ledBlink() {
+  digitalWrite(LEDR, false);
+  digitalWrite(LEDB, true);
+  delay(1000);
+  digitalWrite(LEDB, false);
 }
 
 
-void ledOn(){
-    digitalWrite(LEDB, true);
-    digitalWrite(LEDR, false);  
+void ledOn() {
+  digitalWrite(LEDB, true);
+  digitalWrite(LEDR, false);
 }
 
-void ledRed(){
-    digitalWrite(LEDR, true); 
-    digitalWrite(LEDB, false);  
+void ledRed() {
+  digitalWrite(LEDR, true);
+  digitalWrite(LEDB, false);
 }
 
 //button
@@ -429,23 +429,23 @@ void button() {
       clearEEprom();
       setup();
       _currentLoopState = Startup;
-      
+
     }
-    
-  pressedCount = 0;
+
+    pressedCount = 0;
   }
 }
 
 //**********
 
-void reafMem(int ind){
+void reafMem(int ind) {
   byte val = byte(EEPROM.read(ind));
   Serial.print(ind);
   Serial.print("\t");
   Serial.print(val);
   Serial.print("\t");
   ind = ind + 1;
-  if(ind%60==0)
+  if (ind % 60 == 0)
     Serial.println("\t");
 }
 //********
@@ -455,14 +455,14 @@ void setup() {
 
   //disable watchdogtimer
   //ESP.wdtDisable();
-  Serial.begin(115200); 
+  Serial.begin(115200);
   idDevice = getIdDevice();
   Serial.print("IdDevice");
   Serial.println(idDevice);
   //leggo il valore in memoria del rate
-  readConfigRate(); 
+  readConfigRate();
   postInterval = atoi(configurationRate.rate);
- 
+
   DS18B20.begin();
   Serial.println("setup ds18b20 sensor...");
 
@@ -473,7 +473,7 @@ void setup() {
   buttonTimer.attach(0.1, button);
 
   //* mqttClient = nullptr;
-  
+
   delay(1000);
 }
 
@@ -482,7 +482,7 @@ void loop() {
   //ESP.wdtFeed();
   Serial.print("Loop state: ");
   Serial.println(_currentLoopState);
- 
+
   rssi = WEB.getStrengthSignal();
   Serial.print("Strength signal: ");
   Serial.println(rssi);
@@ -490,121 +490,121 @@ void loop() {
   //loop per controllo canale config
   Serial.print("Mqtt: ");
   Serial.println(mqttConnected);
-  if(mqttConnected){
+  if (mqttConnected) {
     mqttClient->loop();
   }
-  
+
   switch (_currentLoopState)
   {
     case Startup:
-    {
-      readConfigWifi();
-      
-      Serial.println("wifi: ");
-      Serial.println(configurationWifi.ssid);
-      Serial.println(configurationWifi.password);
-      WEB.connectToWiFi(configurationWifi.ssid, configurationWifi.password, WIFI_TIMEOUT_S);
-      if (WEB.isConnectedToWiFi())
       {
-        ledOn();
-        Serial.println("Sono gia conesso al wifi");
-        delay(4000);
-        //se sono già consesso passo all'upddate
-        _currentLoopState = UpdateMode;
+        readConfigWifi();
+
+        Serial.println("wifi: ");
+        Serial.println(configurationWifi.ssid);
+        Serial.println(configurationWifi.password);
+        WEB.connectToWiFi(configurationWifi.ssid, configurationWifi.password, WIFI_TIMEOUT_S);
+        if (WEB.isConnectedToWiFi())
+        {
+          ledOn();
+          Serial.println("Sono gia conesso al wifi");
+          delay(4000);
+          //se sono già consesso passo all'upddate
+          _currentLoopState = UpdateMode;
+        }
+        else
+        {
+          //nello stato di Startup avvio l'access point con l'utilizzo di funzione della
+          //libreria web.h
+          Serial.println("Avvio AP");
+          char* id = const_cast<char*>(idDevice.c_str());
+          strcat(ssid, id);
+          WEB.createAccessPoint(IPAp, ssid, passwordAp);
+          _esp8266WebServer = WEB.createWebServer();
+          //passo al secondo stato
+          _currentLoopState = EnteringProvisioningMode;
+        }
       }
-      else
-      {
-        //nello stato di Startup avvio l'access point con l'utilizzo di funzione della
-        //libreria web.h
-        Serial.println("Avvio AP");
-        char* id = const_cast<char*>(idDevice.c_str());
-        strcat(ssid,id);
-        WEB.createAccessPoint(IPAp, ssid, passwordAp);
-        _esp8266WebServer = WEB.createWebServer();
-        //passo al secondo stato
-        _currentLoopState = EnteringProvisioningMode;
-      }
-    }
-    break;
+      break;
     case EnteringProvisioningMode:
-    {
+      {
         //entro nello stato del handle client
         Serial.print("Handle client ");
-        _esp8266WebServer->on(AP_HOME_PAGE,handle);
-        _esp8266WebServer->on(AP_SUCCESS_PAGE,HTTP_POST,handleConfigWifi);
+        _esp8266WebServer->on(AP_HOME_PAGE, handle);
+        _esp8266WebServer->on(AP_SUCCESS_PAGE, HTTP_POST, handleConfigWifi);
         _currentLoopState = ProvisioningMode;
-       
-    }
-    break;
-    case ProvisioningMode:
-    {
-      ledRed();
-      _esp8266WebServer->handleClient();
-      yield();
-    }
-    break;
-    case ConnectWifi:
-    {
-      connectWifi(); 
-    }
-    break;
-    case catchWifi:
-    {
-      Serial.println("catch connection ...");
-     // mqttConnected = false;
-      recuperaWifi();
-    
-    }
-    break;
-    case UpdateMode:
-    {
-      checkForUpdates(idDevice,versionFirmware);
-      _currentLoopState = ConfigUpdate;
-    }
-    break;
-    case ConfigUpdate:
-    {
-     //  WEB = Web();
-      connectMqtt();
-    
-      //setup();
-      //_currentLoopState = catchWifi;
-      _currentLoopState = WorkingMode;
-    }
-    break;
-    case WorkingMode:
-    {
-      //rssi = WEB.getStrengthSignal();
-      if(rssi==0){
-        setup();
-        _currentLoopState = catchWifi;
+
       }
-      else{
-        if(!mqttConnected){
-          Serial.print("Connected mqtt: ");
-          Serial.println(mqttConnected);
-          _currentLoopState = ConfigUpdate;
+      break;
+    case ProvisioningMode:
+      {
+        ledRed();
+        _esp8266WebServer->handleClient();
+        yield();
+      }
+      break;
+    case ConnectWifi:
+      {
+        connectWifi();
+      }
+      break;
+    case catchWifi:
+      {
+        Serial.println("catch connection ...");
+        // mqttConnected = false;
+        recuperaWifi();
+
+      }
+      break;
+    case UpdateMode:
+      {
+        checkForUpdates(idDevice, versionFirmware);
+        _currentLoopState = ConfigUpdate;
+      }
+      break;
+    case ConfigUpdate:
+      {
+        //  WEB = Web();
+        connectMqtt();
+
+        //setup();
+        //_currentLoopState = catchWifi;
+        _currentLoopState = WorkingMode;
+      }
+      break;
+    case WorkingMode:
+      {
+        //rssi = WEB.getStrengthSignal();
+        if (rssi == 0) {
+          setup();
+          _currentLoopState = catchWifi;
         }
-        if(!stopRead){
-          ledBlink();
-          if (millis() - postLast < postInterval)
-          {
-            Serial.println("wait...");
-            break;
+        else {
+          if (!mqttConnected) {
+            Serial.print("Connected mqtt: ");
+            Serial.println(mqttConnected);
+            _currentLoopState = ConfigUpdate;
           }
-          else{
-            Serial.print("wifi...");
-            Serial.println(WEB.isConnectedToWiFi());
-          
-            getTemperature();
-            publishTemperature();
-  
-          }
-        }//stopRead
-        ledOn();
-      }//rssi=0
-    }
-    break;
+          if (!stopRead) {
+            ledBlink();
+            if (millis() - postLast < postInterval)
+            {
+              Serial.println("wait...");
+              break;
+            }
+            else {
+              Serial.print("wifi...");
+              Serial.println(WEB.isConnectedToWiFi());
+
+              getTemperature();
+              publishTemperature();
+
+            }
+          }//stopRead
+          ledOn();
+        }//rssi=0
+      }
+      break;
   }//switch
-}//loop 
+}//loop
 

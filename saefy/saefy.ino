@@ -35,8 +35,11 @@ unsigned long pressedCount = 0;
 
 IPAddress IPAp = IPAddress(10, 0, 0, 1);
 
-//extern Web WEB;
+//configurazione ap
+char* ssid = "SF";
+const char *passwordAp = "dotcom2018";
 
+//extern Web WEB;
 
 const char* mqttServer = "saefy.dotcom.ts.it";
 const int mqttPort = 5783;
@@ -46,9 +49,7 @@ const char* mqttPassword = "sdfSDF483EEsd";
 char* configtopic = "/SAEFYCONFIG";
 String topicDevice = "/SAEFY/";
 
-//configurazione ap
-char *ssid = "saefy";
-const char *passwordAp = "dotcom2018";
+
 
 int versionFirmware=10; 
 String idDevice="";
@@ -264,15 +265,13 @@ void callbackMqtt(char* topic, byte* payload, unsigned int length) {
   }
 }
 
-
 /*
 Creo il client mqtt e mi registro al topic di configurazione
 */
 void connectMqtt(){
   Serial.println("Mqtt connect11111: ");
   mqttClient = WEB.createMqttClient(mqttServer, mqttPort, mqttUsername, mqttPassword, idDevice.c_str(), callbackMqtt, &mqttConnected);
-  Serial.print("Mqtt connect: ");
-  Serial.println(mqttConnected);
+ 
   if (mqttConnected)
     {
      
@@ -386,6 +385,7 @@ void readConfigRate(){
 
 void clearWifiCredential(){
   SaveConfigWifi("X","X");
+  //clearEEprom();
 }
 
 void clearEEprom(){
@@ -450,7 +450,7 @@ void reafMem(int ind){
 }
 //********
 void setup() {
-//  delay(1000);
+  delay(1000);
   WEB = Web();
 
   //disable watchdogtimer
@@ -479,7 +479,6 @@ void setup() {
 
 
 void loop() {
- 
   //ESP.wdtFeed();
   Serial.print("Loop state: ");
   Serial.println(_currentLoopState);
@@ -565,21 +564,17 @@ void loop() {
     break;
     case ConfigUpdate:
     {
-      //mqtt connect
+     //  WEB = Web();
       connectMqtt();
+    
+      //setup();
+      //_currentLoopState = catchWifi;
       _currentLoopState = WorkingMode;
     }
     break;
-    // case printMem:
-    // {
-    //     for (int a = 0; a<512; a++){
-    //       reafMem(a);
-    //     }
-    //     _currentLoopState = WorkingMode;
-    // }break;
     case WorkingMode:
     {
-      rssi = WEB.getStrengthSignal();
+      //rssi = WEB.getStrengthSignal();
       if(rssi==0){
         setup();
         _currentLoopState = catchWifi;

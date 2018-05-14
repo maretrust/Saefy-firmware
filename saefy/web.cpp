@@ -22,7 +22,7 @@ void Web::createAccessPoint(IPAddress ipAddress, const char* ssid)
 {
 	createAccessPoint(ipAddress, ssid, nullptr);
 }
-void Web::createAccessPoint(IPAddress ipAddress, const char* ssid, const char* password)
+void Web::createAccessPoint(IPAddress ipAddress, const char* ssid, const char* passwordAp)
 {
 	if (_wiFi->getMode() == WIFI_STA)
 	{
@@ -33,10 +33,10 @@ void Web::createAccessPoint(IPAddress ipAddress, const char* ssid, const char* p
 		_wiFi->mode(WIFI_AP);
 	}
 	_wiFi->softAPConfig(ipAddress, ipAddress, IPAddress(255, 255, 255, 0));
-	_wiFi->softAP(ssid, password);
+	_wiFi->softAP(ssid, passwordAp);
 
 	Serial.print(F("WiFi access point set: "));
-	if (password == nullptr)
+	if (passwordAp == nullptr)
 	{
 		Serial.println(ssid);
 	}
@@ -44,19 +44,19 @@ void Web::createAccessPoint(IPAddress ipAddress, const char* ssid, const char* p
 	{
 		Serial.print(ssid);
 		Serial.print(F(", "));
-		Serial.println(password);
+		Serial.println(passwordAp);
 	}
 
 	Serial.print(F("Hot spot IP: "));
 	Serial.println(_wiFi->softAPIP().toString());
 }
 
-void Web::connectToWiFi(const char *ssid, const char *password, byte timeout_s)
+void Web::connectToWiFi(const char *ssid, const char *passwordWifi, byte timeout_s)
 {
 	Serial.print(F("Connecting to: "));
 	Serial.print(ssid);
 	Serial.print(F(", "));
-	Serial.print(password);
+	Serial.print(passwordWifi);
 	Serial.print(F("..."));
 
 	if (_wiFi->getMode() == WIFI_AP)
@@ -72,7 +72,7 @@ void Web::connectToWiFi(const char *ssid, const char *password, byte timeout_s)
 		_wiFi->disconnect(false);
 	}
 
-	_wiFi->begin(ssid, password);
+	_wiFi->begin(ssid, passwordWifi);
 	byte current_s = 0;
 	while ((!isConnectedToWiFi())
 		&& (current_s <= timeout_s))
@@ -147,20 +147,20 @@ ESP8266WebServer* Web::createWebServer()
 	return &_webServer;
 }
 
-PubSubClient* Web::createMqttClient(const char* broker, uint16_t port, const char* username, const char* password, const char* id, bool* connected)
+PubSubClient* Web::createMqttClient(const char* broker, uint16_t port, const char* mqttUsername, const char* mqttPassword, const char* id, bool* connected)
 {
-	return createMqttClient(broker, port, username, password, id, nullptr, connected);
+	return createMqttClient(broker, port, mqttUsername, mqttPassword, id, nullptr, connected);
 }
-PubSubClient* Web::createMqttClient(const char* broker, uint16_t port, const char* username, const char* password, const char* id, std::function<void(char*, byte*, uint16_t)> callback, bool* connected)
+PubSubClient* Web::createMqttClient(const char* broker, uint16_t port, const char* mqttUsername, const char* mqttPassword, const char* id, std::function<void(char*, byte*, uint16_t)> callback, bool* connected)
 {
 	Serial.print(F("Connecting to MQTT broker: "));
 	Serial.print(broker);
 	Serial.print(F(":"));
 	Serial.print(port);
 	Serial.print(F("; username: "));
-	Serial.print(username);
+	Serial.print(mqttUsername);
 	Serial.print(F("; password: "));
-	Serial.print(password);
+	Serial.print(mqttPassword);
 	Serial.print(F("; id: "));
 	Serial.print(id);
 	Serial.println(F("..."));
@@ -168,7 +168,7 @@ PubSubClient* Web::createMqttClient(const char* broker, uint16_t port, const cha
 
 	_mqttClient = PubSubClient(_tcpClient);
 	_mqttClient.setServer(broker, port);
-	*connected = _mqttClient.connect(id, username, password);
+	*connected = _mqttClient.connect(id, mqttUsername, mqttPassword);
 
 	if (*connected)
 	{
@@ -184,6 +184,7 @@ PubSubClient* Web::createMqttClient(const char* broker, uint16_t port, const cha
 	{
 		Serial.print(F("Connection to MQTT broker could not be estabilished; status: "));
 		Serial.println(_mqttClient.state());
+    
 	}
 
 	return &_mqttClient;

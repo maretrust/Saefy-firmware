@@ -39,19 +39,19 @@ IPAddress IPAp = IPAddress(10, 0, 0, 1);
 
 //extern Web WEB;
 
-const char* mqttServer = "saefy.dotcom.ts.it";
+const char* mqttServer = "mqtt.saefy.eu";
 const int mqttPort = 5783;
-const char* mqttUsername = "saefy";
-const char* mqttPassword = "sdfSDF483EEsd";
+const char* mqttUsername = "atlantis";
+const char* mqttPassword = "rBfsQj53H9c471";
 
 char* configtopic = "/SAEFYCONFIG";
-String topicDevice = "/SAEFY/";
+String topicDevice = "SAEFY/ATLANTIS/";
 
 //configurazione ap
 char* ssid = "SF";
 const char *passwordAp = "dotcom2018";
 
-int versionFirmware = 10;
+int versionFirmware = 11;
 String idDevice = "";
 
 String ssidWifiClient = "";

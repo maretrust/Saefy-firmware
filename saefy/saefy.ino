@@ -72,6 +72,7 @@ char charVal[10];               //temporarily holds data from vals
 
 unsigned long postLast = 0;
 int postInterval = 100000; // Post every minute
+int minInterval = 90000;
 bool stopRead = false;
 
 long rssi = -1;
@@ -193,10 +194,15 @@ void changeConfig(String cmd, String value) {
   if (strcmp(c, "rate") == 0)
   {
     postInterval = value.toInt();
+    
+    if(postInterval < minInterval){
+      postInterval = minInterval;
+      itoa(postInterval, v, 10);
+    }
     //salvo in memoria il rate
-    SaveConfigRate(const_cast<char*>(value.c_str()));
+    SaveConfigRate(const_cast<char*>(v));
     Serial.println("set rate ");
-    Serial.println(value);
+    Serial.println(v);
   }
   else if (strcmp(c, "update") == 0)
   {
@@ -462,6 +468,10 @@ void setup() {
   //leggo il valore in memoria del rate
   readConfigRate();
   postInterval = atoi(configurationRate.rate);
+  
+  if(postInterval < minInterval){
+    postInterval = minInterval;
+  }
 
   DS18B20.begin();
   Serial.println("setup ds18b20 sensor...");
@@ -490,9 +500,7 @@ void loop() {
   //loop per controllo canale config
   Serial.print("Mqtt: ");
   Serial.println(mqttConnected);
-  if (mqttConnected) {
-    mqttClient->loop();
-  }
+ 
 
   switch (_currentLoopState)
   {
@@ -584,6 +592,9 @@ void loop() {
             Serial.print("Connected mqtt: ");
             Serial.println(mqttConnected);
             _currentLoopState = ConfigUpdate;
+          }
+          else{
+            mqttClient->loop();
           }
           if (!stopRead) {
             ledBlink();

@@ -39,10 +39,10 @@ IPAddress IPAp = IPAddress(10, 0, 0, 1);
 
 //extern Web WEB;
 
-const char* mqttServer = "mqtt.saefy.eu";
-const int mqttPort = 5783;
-const char* mqttUsername = "atlantis";
-const char* mqttPassword = "rBfsQj53H9c471";
+const char* mqttServer = "192.168.20.216";//"mqtt.saefy.eu";
+const int mqttPort = 1883; //5783;
+const char* mqttUsername = "dotcom";//"atlantis";
+const char* mqttPassword = "dotcom";//rBfsQj53H9c471";
 
 char* configtopic = "/SAEFYCONFIG";
 String topicDevice = "SAEFY/ATLANTIS/";
@@ -588,7 +588,7 @@ void loop() {
           _currentLoopState = catchWifi;
         }
         else {
-          if (!mqttConnected) {
+          if (!mqttClient->connected()) {
             Serial.print("Connected mqtt: ");
             Serial.println(mqttConnected);
             _currentLoopState = ConfigUpdate;

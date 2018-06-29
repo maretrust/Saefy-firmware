@@ -39,19 +39,19 @@ IPAddress IPAp = IPAddress(10, 0, 0, 1);
 
 //extern Web WEB;
 
-const char* mqttServer = "192.168.20.216";//"mqtt.saefy.eu";
-const int mqttPort = 1883; //5783;
-const char* mqttUsername = "dotcom";//"atlantis";
-const char* mqttPassword = "dotcom";//rBfsQj53H9c471";
+const char* mqttServer = "mqtt.saefy.eu";
+const int mqttPort = 5783;
+const char* mqttUsername = "kz-sevnica";
+const char* mqttPassword = "KmE754";
 
 char* configtopic = "/SAEFYCONFIG";
-String topicDevice = "SAEFY/ATLANTIS/";
+String topicDevice = "SAEFY/KZ-SEVNICA/";
 
 //configurazione ap
 char* ssid = "SF";
 const char *passwordAp = "dotcom2018";
 
-int versionFirmware = 11;
+int versionFirmware = 12;
 String idDevice = "";
 
 String ssidWifiClient = "";
@@ -97,6 +97,7 @@ struct saefyConfigRate
 enum LoopState
 {
   Startup,
+  AccessPoint,
   EnteringProvisioningMode,
   ProvisioningMode,
   ConnectWifi,
@@ -325,6 +326,13 @@ void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, cha
   strcat(string, const_cast<char*>(stopRead ? "true" : "false"));
   strcat(string, ", ");
 
+  
+  strcat(string, "\"F\":");
+  char fstr[16];
+  itoa(versionFirmware,  fstr, 10);
+  strcat(string, fstr);
+  strcat(string, ", ");
+
   strcat(string, "\"SW\":");
   char crssi[16];
   ltoa(rssi,  crssi, 10);
@@ -432,10 +440,11 @@ void button() {
   else {
     if (pressedCount > 50) {
       Serial.println("Več kot 5 sekund je mimo, brišem eeprom!");
-      clearEEprom();
-      setup();
-      _currentLoopState = Startup;
-
+      //clearEEprom();
+      //setup();
+     // _currentLoopState = Startup;
+      _currentLoopState = AccessPoint;
+      pressedCount = 0;
     }
 
     pressedCount = 0;
@@ -498,7 +507,7 @@ void loop() {
   Serial.println(rssi);
   delay(1000);
   //loop per controllo canale config
-  Serial.print("Mqtt: ");
+  Serial.print("Mqtt version 12: ");
   Serial.println(mqttConnected);
  
 
@@ -516,24 +525,25 @@ void loop() {
         {
           ledOn();
           Serial.println("Sono gia conesso al wifi");
-          delay(4000);
+          delay(1000);
           //se sono già consesso passo all'upddate
           _currentLoopState = UpdateMode;
         }
-        else
-        {
-          //nello stato di Startup avvio l'access point con l'utilizzo di funzione della
-          //libreria web.h
-          Serial.println("Avvio AP");
-          char* id = const_cast<char*>(idDevice.c_str());
-          strcat(ssid, id);
-          WEB.createAccessPoint(IPAp, ssid, passwordAp);
-          _esp8266WebServer = WEB.createWebServer();
-          //passo al secondo stato
-          _currentLoopState = EnteringProvisioningMode;
-        }
       }
       break;
+    case AccessPoint:
+    {
+        //nello stato di Startup avvio l'access point con l'utilizzo di funzione della
+        //libreria web.h
+        Serial.println("Avvio AP");
+        char* id = const_cast<char*>(idDevice.c_str());
+        strcat(ssid, id);
+        WEB.createAccessPoint(IPAp, ssid, passwordAp);
+        _esp8266WebServer = WEB.createWebServer();
+        //passo al secondo stato
+        _currentLoopState = EnteringProvisioningMode;
+    }
+    break;
     case EnteringProvisioningMode:
       {
         //entro nello stato del handle client

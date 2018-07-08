@@ -41,14 +41,14 @@ IPAddress IPAp = IPAddress(10, 0, 0, 1);
 
 const char* mqttServer = "mqtt.saefy.eu";
 const int mqttPort = 5783;
-const char* mqttUsername = "kz-sevnica";
-const char* mqttPassword = "KmE754";
+const char* mqttUsername = "atlantis";
+const char* mqttPassword = "rBfsQj53H9c471";
 
 char* configtopic = "/SAEFYCONFIG";
-String topicDevice = "SAEFY/KZ-SEVNICA/";
+String topicDevice = "SAEFY/ATLANTIS/";
 
 //configurazione ap
-char* ssid = "SF";
+char ssid[20] = "SF";
 const char *passwordAp = "dotcom2018";
 
 int versionFirmware = 12;
@@ -71,8 +71,9 @@ float temperature = 0.0;
 char charVal[10];               //temporarily holds data from vals
 
 unsigned long postLast = 0;
-int postInterval = 100000; // Post every minute
-int minInterval = 90000;
+unsigned long timeLast;
+long postInterval = 100000; // Post every minute
+int minInterval = 9000;
 bool stopRead = false;
 
 long rssi = -1;
@@ -216,7 +217,8 @@ void changeConfig(String cmd, String value) {
   else if (strcmp(c, "clearwifi") == 0)
   {
     Serial.println("reset wifi");
-    clearWifiCredential();
+    //clearWifiCredential();
+    _currentLoopState = AccessPoint;
   }
   else if (strcmp(c, "clear") == 0)
   {
@@ -322,13 +324,14 @@ void getMeasurementsPayload(byte probeId, char* probeName, float probeValue, cha
   strcat(string, cstr);
   strcat(string, ", ");
 
-  strcat(string, "\"S\":");
+  /*strcat(string, "\"S\":");
   strcat(string, const_cast<char*>(stopRead ? "true" : "false"));
   strcat(string, ", ");
+  */
 
   
   strcat(string, "\"F\":");
-  char fstr[16];
+  char fstr[4];
   itoa(versionFirmware,  fstr, 10);
   strcat(string, fstr);
   strcat(string, ", ");
@@ -396,11 +399,12 @@ void readConfigRate() {
   EEPROM.get(eepromAddressRate, configurationRate);
   EEPROM.end();
 }
-
+/*
 void clearWifiCredential() {
-  SaveConfigWifi("X", "X");
+  SaveConfigWifi('X', 'X');
   //clearEEprom();
 }
+*/
 
 void clearEEprom() {
   EEPROM.begin(512);
@@ -444,6 +448,7 @@ void button() {
       //setup();
      // _currentLoopState = Startup;
       _currentLoopState = AccessPoint;
+     // delay(1000);
       pressedCount = 0;
     }
 
@@ -534,14 +539,22 @@ void loop() {
     case AccessPoint:
     {
         //nello stato di Startup avvio l'access point con l'utilizzo di funzione della
-        //libreria web.h
         Serial.println("Avvio AP");
+        //ssid = "SF";
+        memset(ssid, 0, sizeof(ssid));
+        
+        strcpy(ssid,"SF");
+        Serial.print("prima ");
+        Serial.print(ssid);
         char* id = const_cast<char*>(idDevice.c_str());
         strcat(ssid, id);
+        Serial.print("dopo ");
+        Serial.print(ssid);
         WEB.createAccessPoint(IPAp, ssid, passwordAp);
         _esp8266WebServer = WEB.createWebServer();
         //passo al secondo stato
         _currentLoopState = EnteringProvisioningMode;
+        delay(1000);
     }
     break;
     case EnteringProvisioningMode:
@@ -608,7 +621,12 @@ void loop() {
           }
           if (!stopRead) {
             ledBlink();
-            if (millis() - postLast < postInterval)
+            Serial.print("Time: ");
+            timeLast = millis();
+            Serial.println(timeLast);
+            Serial.print("Past: ");
+            Serial.println(postLast);
+            if (timeLast - postLast < postInterval)
             {
               Serial.println("wait...");
               break;

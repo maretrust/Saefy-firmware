@@ -24,7 +24,10 @@
 //timers
 Ticker buttonTimer;
 unsigned long pressedCount = 0;
-
+//set timeout mqtt
+#ifndef MQTT_SOCKET_TIMEOUT
+#define MQTT_SOCKET_TIMEOUT 5
+#endif
 //persistenza dato
 #define SSID_LENGTH 32
 #define PASSWORD_LENGTH 32
@@ -39,19 +42,19 @@ IPAddress IPAp = IPAddress(10, 0, 0, 1);
 
 //extern Web WEB;
 
-const char* mqttServer = "mqtt.saefy.eu";
+const char* mqttServer = "saefy.dotcom.ts.it";
 const int mqttPort = 5783;
-const char* mqttUsername = "atlantis";
-const char* mqttPassword = "rBfsQj53H9c471";
+const char* mqttUsername = "saefy";
+const char* mqttPassword = "sdfSDF483EEsd";
 
 char* configtopic = "/SAEFYCONFIG";
-String topicDevice = "SAEFY/ATLANTIS/";
+String topicDevice = "/SAEFY/";
 
 //configurazione ap
 char ssid[20] = "SF";
 const char *passwordAp = "dotcom2018";
 
-int versionFirmware = 12;
+int versionFirmware = 13;
 String idDevice = "";
 
 String ssidWifiClient = "";
@@ -280,7 +283,7 @@ void callbackMqtt(char* topic, byte* payload, unsigned int length) {
 void connectMqtt() {
   Serial.println("Mqtt connect11111: ");
   mqttClient = WEB.createMqttClient(mqttServer, mqttPort, mqttUsername, mqttPassword, idDevice.c_str(), callbackMqtt, &mqttConnected);
-
+  //mqttClient->disconnect();
   if (mqttConnected)
   {
 
@@ -617,6 +620,7 @@ void loop() {
             _currentLoopState = ConfigUpdate;
           }
           else{
+            delay(100);
             mqttClient->loop();
           }
           if (!stopRead) {

@@ -10,6 +10,8 @@
 #include <Ticker.h>
 // #include "led.h"
 
+//versione ESP8266 core 2.4.2
+//versione PUbSubClient 2.7
 //configurazione ap
 #define AP_HOME_PAGE "/"
 #define AP_SUCCESS_PAGE "/configwifi"
